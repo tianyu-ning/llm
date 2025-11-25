@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大模型Web界面</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 保持原有的CSS样式不变 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e6e6e6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1.5rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #4cc9f0, #4361ee);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .header p {
+            color: #b0b0b0;
+            font-size: 1rem;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 1.5rem;
+            gap: 1.5rem;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chat-history {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-height: 70vh;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 1rem 1.5rem;
+            border-radius: 18px;
+            line-height: 1.5;
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #4361ee, #3a0ca3);
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom-left-radius: 6px;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .message-header i {
+            margin-right: 0.5rem;
+        }
+
+        .thinking-content {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+            border-left: 4px solid #4cc9f0;
+            font-size: 0.9rem;
+            color: #b0b0b0;
+        }
+
+        .thinking-content h4 {
+            color: #4cc9f0;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .thinking-content h4 i {
+            margin-right: 0.5rem;
+        }
+
+        .input-container {
+            display: flex;
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-container textarea {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-container textarea:focus {
+            border-color: #4361ee;
+        }
+
+        .input-container button {
+            margin-left: 1rem;
+            padding: 0 1.5rem;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #4361ee, #3a0ca3);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .input-container button:hover {
+            transform: translateY(-2px);
+        }
+
+        .input-container button:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .info-panel {
+            width: 320px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .panel-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 1.2rem;
+        }
+
+        .panel-section h3 {
+            color: #4cc9f0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .panel-section h3 i {
+            margin-right: 0.7rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 0.8rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4cc9f0;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #b0b0b0;
+            margin-top: 0.3rem;
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            color: #4cc9f0;
+            font-style: italic;
+            margin-top: 0.5rem;
+        }
+
+        .typing-dots {
+            display: flex;
+            margin-left: 0.5rem;
+        }
+
+        .typing-dots span {
+            height: 6px;
+            width: 6px;
+            background: #4cc9f0;
+            border-radius: 50%;
+            display: block;
+            margin: 0 2px;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dots span:nth-child(1) { animation-delay: 0s; }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-5px); }
+        }
+
+        .message-info {
+            font-size: 0.8rem;
+            color: #b0b0b0;
+            margin-top: 0.5rem;
+            text-align: right;
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+            }
+            .info-panel {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fas fa-robot"></i> 大模型Web界面</h1>
+        <p>基于 Qwen3-1.7B 模型的交互式Web应用</p>
+    </div>
+
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-history" id="chatHistory">
+                <div class="message bot-message">
+                    <div class="message-header">
+                        <i class="fas fa-robot"></i> 模型助手
+                    </div>
+                    您好！我是基于Qwen3-1.7B大模型的AI助手。我可以帮助您解答问题、生成文本或进行对话。请随时向我提问！
+                </div>
+            </div>
+            <div class="input-container">
+                <textarea id="userInput" placeholder="请输入您的问题或指令..." rows="1"></textarea>
+                <button id="sendButton">
+                    <i class="fas fa-paper-plane"></i> 发送
+                </button>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="panel-section">
+                <h3><i class="fas fa-info-circle"></i> 模型信息</h3>
+                <p>当前模型: <strong>Qwen3-1.7B</strong></p>
+                <p>模型类型: 大型语言模型</p>
+                <p>参数规模: 17亿</p>
+                <p>支持功能: 文本生成、对话、代码解释</p>
+            </div>
+
+            <div class="panel-section">
+                <h3><i class="fas fa-chart-bar"></i> 使用统计</h3>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalRequests">0</div>
+                        <div class="stat-label">总请求数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="avgResponseTime">0s</div>
+                        <div class="stat-label">平均响应时间</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="successRate">100%</div>
+                        <div class="stat-label">成功率</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="tokensGenerated">0</div>
+                        <div class="stat-label">生成Token数</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3><i class="fas fa-code"></i> 系统状态</h3>
+                <p id="modelStatus">模型状态: <span id="statusText">加载中...</span></p>
+                <p id="deviceInfo">运行设备: <span id="deviceText">未知</span></p>
+                <button id="refreshStatus" style="margin-top: 10px; padding: 8px 12px; background: #4361ee; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-sync-alt"></i> 刷新状态
+                </button>
+                <button id="testConnection" style="margin-top: 10px; padding: 8px 12px; background: #4cc9f0; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%;">
+                    <i class="fas fa-plug"></i> 测试连接
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化代码高亮
+        hljs.highlightAll();
+
+        // DOM元素
+        const chatHistory = document.getElementById('chatHistory');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const totalRequests = document.getElementById('totalRequests');
+        const avgResponseTime = document.getElementById('avgResponseTime');
+        const tokensGenerated = document.getElementById('tokensGenerated');
+        const statusText = document.getElementById('statusText');
+        const deviceText = document.getElementById('deviceText');
+        const refreshStatus = document.getElementById('refreshStatus');
+        const testConnection = document.getElementById('testConnection');
+
+        // 统计变量
+        let requestCount = 0;
+        let totalResponseTime = 0;
+        let totalTokens = 0;
+
+        console.log("页面JavaScript加载完成");
+
+        // 自动调整文本框高度
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        // 测试连接函数
+        async function testServerConnection() {
+            try {
+                console.log("测试服务器连接...");
+                const response = await fetch('/health');
+                const data = await response.json();
+                console.log('连接测试结果:', data);
+                alert(`服务器连接正常！模型加载状态: ${data.model_loaded ? '已加载' : '未加载'}`);
+                return true;
+            } catch (error) {
+                console.error('连接测试失败:', error);
+                alert(`连接测试失败: ${error.message}`);
+                return false;
+            }
+        }
+
+        // 发送消息函数
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            console.log('尝试发送消息:', message);
+            
+            if (!message) {
+                alert("请输入消息");
+                return;
+            }
+
+            console.log(`发送消息: "${message}"`);
+            
+            // 添加用户消息到聊天历史
+            addMessage(message, 'user');
+            
+            // 清空输入框
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            
+            // 禁用发送按钮
+            sendButton.disabled = true;
+            
+            // 显示模型正在输入
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'message bot-message';
+            typingIndicator.innerHTML = `
+                <div class="message-header">
+                    <i class="fas fa-robot"></i> 模型助手
+                </div>
+                正在思考中...
+                <div class="typing-indicator">
+                    模型正在生成响应
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            `;
+            chatHistory.appendChild(typingIndicator);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            
+            try {
+                console.log("发送POST请求到 /chat...");
+                
+                // 发送请求到后端
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                console.log('收到响应，状态码:', response.status);
+                
+                const data = await response.json();
+                console.log('响应数据:', data);
+                
+                // 移除"正在输入"指示器
+                if (chatHistory.contains(typingIndicator)) {
+                    chatHistory.removeChild(typingIndicator);
+                }
+                
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP错误: ${response.status}`);
+                }
+                
+                if (data.error) {
+                    addMessage(`抱歉，发生了错误：${data.error}`, 'bot');
+                } else {
+                    // 添加模型响应到聊天历史
+                    addMessage(data.content, 'bot', data.thinking_content, data.generation_time, data.tokens_generated);
+                    
+                    // 更新统计信息
+                    updateStats(data.generation_time, data.tokens_generated);
+                }
+            } catch (error) {
+                console.error('请求失败:', error);
+                // 移除"正在输入"指示器
+                if (chatHistory.contains(typingIndicator)) {
+                    chatHistory.removeChild(typingIndicator);
+                }
+                addMessage(`请求失败：${error.message}`, 'bot');
+            } finally {
+                // 重新启用发送按钮
+                sendButton.disabled = false;
+                console.log('发送按钮已重新启用');
+            }
+        }
+
+        // 添加消息到聊天历史
+        function addMessage(content, sender, thinkingContent = null, responseTime = null, tokens = null) {
+            console.log(`添加消息，发送者: ${sender}, 内容长度: ${content.length}`);
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            let messageHTML = `
+                <div class="message-header">
+                    <i class="fas fa-${sender === 'user' ? 'user' : 'robot'}"></i> 
+                    ${sender === 'user' ? '您' : '模型助手'}
+                </div>
+            `;
+
+            // 处理错误消息
+            if (content.includes('错误') || content.includes('失败')) {
+                messageHTML += `<div class="error-message">${content}</div>`;
+            } else {
+                messageHTML += marked.parse(content);
+            }
+            
+            // 如果有思考内容，添加到消息中
+            if (thinkingContent && sender === 'bot') {
+                messageHTML += `
+                    <div class="thinking-content">
+                        <h4><i class="fas fa-brain"></i> 模型思考过程</h4>
+                        ${marked.parse(thinkingContent)}
+                    </div>
+                `;
+            }
+            
+            // 添加响应时间和token信息
+            if (responseTime !== null && tokens !== null && sender === 'bot') {
+                messageHTML += `
+                    <div class="message-info">
+                        响应时间: ${responseTime}s | 生成Token: ${tokens}
+                    </div>
+                `;
+            }
+            
+            messageDiv.innerHTML = messageHTML;
+            chatHistory.appendChild(messageDiv);
+            
+            // 重新高亮代码块
+            messageDiv.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            
+            // 滚动到底部
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            
+            console.log('消息已添加到聊天历史');
+        }
+
+        // 更新统计信息
+        function updateStats(responseTime, tokens) {
+            requestCount++;
+            totalResponseTime += responseTime;
+            totalTokens += tokens;
+            
+            totalRequests.textContent = requestCount;
+            avgResponseTime.textContent = (totalResponseTime / requestCount).toFixed(2) + 's';
+            tokensGenerated.textContent = totalTokens;
+            
+            console.log(`统计信息更新: 请求数=${requestCount}, 平均时间=${(totalResponseTime / requestCount).toFixed(2)}s`);
+        }
+
+        // 获取模型状态
+        async function getModelStatus() {
+            try {
+                console.log("获取模型状态...");
+                const response = await fetch('/api/info');
+                const data = await response.json();
+                
+                statusText.textContent = data.status;
+                deviceText.textContent = data.device;
+                
+                if (data.status === '运行中') {
+                    statusText.style.color = '#4cc9f0';
+                } else {
+                    statusText.style.color = '#f72585';
+                }
+                
+                console.log('模型状态:', data);
+            } catch (error) {
+                console.error('获取状态失败:', error);
+                statusText.textContent = '获取失败';
+                statusText.style.color = '#f72585';
+            }
+        }
+
+        // 事件监听 - 修复这里！
+        console.log("设置事件监听器...");
+        
+        sendButton.addEventListener('click', function(e) {
+            console.log('发送按钮被点击');
+            e.preventDefault();
+            sendMessage();
+        });
+        
+        userInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                console.log('Enter键被按下');
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        refreshStatus.addEventListener('click', getModelStatus);
+        testConnection.addEventListener('click', testServerConnection);
+
+        // 初始加载
+        console.log("执行初始加载...");
+        getModelStatus();
+        userInput.focus();
+        
+        // 测试连接
+        setTimeout(() => {
+            testServerConnection();
+        }, 1000);
+
+        // 添加全局错误处理
+        window.addEventListener('error', function(e) {
+            console.error('全局错误:', e.message, e.error);
+        });
+
+        console.log("所有JavaScript代码加载完成");
+    </script>
+</body>
+</html>
